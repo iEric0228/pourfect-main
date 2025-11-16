@@ -1,0 +1,237 @@
+'use client';
+
+import React, { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { MessageCircle, Send, Search, Plus } from "lucide-react";
+import Layout from "@/components/Layout";
+import { firebase } from "@/lib/firebaseService";
+import { useAuth } from "@/contexts/AuthContext";
+
+export default function Messages() {
+  const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
+  const [newMessage, setNewMessage] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const { user } = useAuth();
+
+  const { data: conversations, isLoading } = useQuery({
+    queryKey: ['conversations', user?.uid],
+    queryFn: async () => {
+      if (!user) return [];
+      return await firebase.entities.Conversation.filter(
+        { participants: user.uid },
+        { orderBy: { field: 'last_message_at', direction: 'desc' } }
+      );
+    },
+    enabled: !!user,
+  });
+
+  const { data: messages } = useQuery({
+    queryKey: ['messages', selectedConversation],
+    queryFn: async () => {
+      if (!selectedConversation) return [];
+      return await firebase.entities.Message.filter(
+        { conversation_id: selectedConversation },
+        { orderBy: { field: 'created_at', direction: 'asc' } }
+      );
+    },
+    enabled: !!selectedConversation,
+  });
+
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMessage.trim() || !selectedConversation || !user) return;
+
+    try {
+      await firebase.entities.Message.create({
+        conversation_id: selectedConversation,
+        sender_id: user.uid,
+        content: newMessage.trim(),
+        message_type: 'text',
+        read_by: [user.uid]
+      });
+
+      // Update conversation's last message
+      await firebase.entities.Conversation.update(selectedConversation, {
+        last_message: newMessage.trim(),
+        last_message_at: new Date()
+      });
+
+      setNewMessage('');
+    } catch (error) {
+      console.error('Error sending message:', error);
+    }
+  };
+
+  return (
+    <Layout>
+      <div className="min-h-screen">
+        <div className="max-w-7xl mx-auto px-6 py-8">
+          <div className="bg-white/5 rounded-xl backdrop-blur-sm border border-white/10 overflow-hidden" style={{ height: 'calc(100vh - 200px)' }}>
+            <div className="flex h-full">
+              {/* Conversations List */}
+              <div className="w-1/3 border-r border-white/10 flex flex-col">
+                {/* Header */}
+                <div className="p-6 border-b border-white/10">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-semibold text-white">Messages</h2>
+                    <button className="p-2 bg-purple-500 hover:bg-purple-600 rounded-lg transition-colors">
+                      <Plus className="w-5 h-5 text-white" />
+                    </button>
+                  </div>
+                  
+                  {/* Search */}
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <input
+                      type="text"
+                      placeholder="Search conversations..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full pl-9 pr-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Conversations */}
+                <div className="flex-1 overflow-y-auto">
+                  {isLoading ? (
+                    <div className="p-4 space-y-4">
+                      {[...Array(5)].map((_, i) => (
+                        <div key={i} className="animate-pulse">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-gray-600 rounded-full"></div>
+                            <div className="flex-1">
+                              <div className="h-4 bg-gray-600 rounded w-3/4 mb-1"></div>
+                              <div className="h-3 bg-gray-600 rounded w-1/2"></div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : conversations && conversations.length > 0 ? (
+                    <div className="p-2">
+                      {conversations.map((conversation) => (
+                        <button
+                          key={conversation.id}
+                          onClick={() => setSelectedConversation(conversation.id)}
+                          className={`w-full p-4 rounded-lg text-left transition-colors ${
+                            selectedConversation === conversation.id
+                              ? 'bg-purple-500/20 border border-purple-500/30'
+                              : 'hover:bg-white/5'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
+                              <span className="text-white font-semibold text-sm">
+                                {conversation.participants[0]?.charAt(0)?.toUpperCase() || 'U'}
+                              </span>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium text-white truncate">
+                                Conversation
+                              </div>
+                              <div className="text-sm text-gray-400 truncate">
+                                {conversation.last_message || 'No messages yet'}
+                              </div>
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                      <MessageCircle className="w-12 h-12 mb-2" />
+                      <p>No conversations yet</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Chat Area */}
+              <div className="flex-1 flex flex-col">
+                {selectedConversation ? (
+                  <>
+                    {/* Chat Header */}
+                    <div className="p-6 border-b border-white/10">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
+                          <span className="text-white font-semibold text-sm">U</span>
+                        </div>
+                        <div>
+                          <div className="font-medium text-white">Conversation</div>
+                          <div className="text-sm text-gray-400">Online</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Messages */}
+                    <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                      {messages && messages.length > 0 ? (
+                        messages.map((message) => (
+                          <div
+                            key={message.id}
+                            className={`flex ${
+                              message.sender_id === user?.uid ? 'justify-end' : 'justify-start'
+                            }`}
+                          >
+                            <div
+                              className={`max-w-xs px-4 py-2 rounded-lg ${
+                                message.sender_id === user?.uid
+                                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
+                                  : 'bg-white/10 text-white border border-white/20'
+                              }`}
+                            >
+                              <p>{message.content}</p>
+                              <div className="text-xs opacity-70 mt-1">
+                                {message.created_at?.toDate?.()?.toLocaleTimeString([], { 
+                                  hour: '2-digit', 
+                                  minute: '2-digit' 
+                                }) || 'Now'}
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="flex items-center justify-center h-full text-gray-500">
+                          <p>No messages in this conversation</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Message Input */}
+                    <div className="p-6 border-t border-white/10">
+                      <form onSubmit={handleSendMessage} className="flex gap-3">
+                        <input
+                          type="text"
+                          value={newMessage}
+                          onChange={(e) => setNewMessage(e.target.value)}
+                          placeholder="Type a message..."
+                          className="flex-1 px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        />
+                        <button
+                          type="submit"
+                          disabled={!newMessage.trim()}
+                          className="p-3 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-all"
+                        >
+                          <Send className="w-5 h-5" />
+                        </button>
+                      </form>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex-1 flex items-center justify-center text-gray-500">
+                    <div className="text-center">
+                      <MessageCircle className="w-16 h-16 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium mb-2">Select a conversation</h3>
+                      <p>Choose a conversation from the list to start messaging</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Layout>
+  );
+}
