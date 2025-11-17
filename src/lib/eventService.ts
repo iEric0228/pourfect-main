@@ -1,6 +1,5 @@
 import { firebase } from './firebaseService';
 import { Event, Ticket, EventLike, EventSave, RSVP } from './firebaseService';
-import { TicketService } from './ticketService';
 import QRCode from 'qrcode';
 
 export class EventService {
@@ -205,7 +204,7 @@ export class EventService {
       name: string;
       email: string;
     }
-  ): Promise<string> {
+  ): Promise<Ticket> {
     try {
       // Get event details
       const event = await firebase.entities.Event.get(eventId);
@@ -213,8 +212,20 @@ export class EventService {
 
       const totalPrice = (event.price || 0) * quantity;
       
-      // Use the new TicketService to create ticket with QR code and email
-      const ticketId = await TicketService.createTicket({
+      // Generate unique ticket code and QR code
+      const ticketCode = this.generateTicketCode();
+      const qrCodeData = JSON.stringify({
+        ticketId: ticketCode,
+        eventId: eventId,
+        userId: userId,
+        quantity: quantity,
+        purchaseDate: new Date().toISOString()
+      });
+      
+      const qrCode = await QRCode.toDataURL(qrCodeData);
+
+      // Create ticket
+      const ticket = await firebase.entities.Ticket.create({
         event_id: eventId,
         event_title: event.title,
         event_date: event.start_date,
@@ -224,6 +235,10 @@ export class EventService {
         buyer_email: userDetails.email,
         quantity: quantity,
         total_price: totalPrice,
+        purchase_date: new Date() as any,
+        ticket_code: ticketCode,
+        qr_code: qrCode,
+        status: 'active' as const,
         payment_method: paymentMethod,
         payment_id: `pay_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
       });
@@ -234,7 +249,9 @@ export class EventService {
         tickets_available: Math.max(0, (event.tickets_available || 0) - quantity)
       });
 
-      return ticketId;
+      return typeof ticket === 'string' ? 
+        await firebase.entities.Ticket.get(ticket) as Ticket : 
+        ticket as Ticket;
     } catch (error) {
       console.error('Error purchasing ticket:', error);
       throw error;
@@ -464,6 +481,65 @@ END:VCALENDAR`;
     return result;
   }
 
+  // Create a new event (for hosts)
+  static async createEvent(data: {
+    title: string;
+    description: string;
+    image_url: string;
+    location: { name: string; address: string; coordinates?: { lat: number; lng: number } };
+    start_date: Date;
+    end_date: Date;
+    price?: number;
+    capacity: number;
+    category: 'tasting' | 'workshop' | 'happy-hour' | 'networking' | 'competition' | 'other';
+    tags?: string[];
+    policy?: { age_restriction?: number; dress_code?: string; refund_policy?: string; terms?: string };
+    organizer_id: string;
+    organizer_name: string;
+    organizer_avatar?: string;
+  }): Promise<string> {
+    try {
+      const location = {
+        name: data.location.name,
+        address: data.location.address,
+        coordinates: data.location.coordinates || { lat: 0, lng: 0 }
+      };
+      
+      const policy = {
+        refund_policy: data.policy?.refund_policy || 'Contact organizer for refund policy',
+        terms: data.policy?.terms || 'Standard event terms apply',
+        age_restriction: data.policy?.age_restriction,
+        dress_code: data.policy?.dress_code
+      };
 
+      const event = await firebase.entities.Event.create({
+        title: data.title,
+        description: data.description,
+        image_url: data.image_url,
+        location: location,
+        start_date: data.start_date as any,
+        end_date: data.end_date as any,
+        price: data.price || 0,
+        tickets_available: data.capacity,
+        tickets_sold: 0,
+        rsvp_count: 0,
+        likes_count: 0,
+        saves_count: 0,
+        organizer_id: data.organizer_id,
+        organizer_name: data.organizer_name,
+        organizer_avatar: data.organizer_avatar || '',
+        category: data.category,
+        tags: data.tags || [],
+        policy: policy,
+        capacity: data.capacity,
+        status: 'upcoming',
+        featured: false
+      });
 
+      return typeof event === 'string' ? event : (event as any).id;
+    } catch (error) {
+      console.error('Error creating event:', error);
+      throw error;
+    }
+  }
 }

@@ -45,6 +45,7 @@ export default function Events() {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedLocation, setSelectedLocation] = useState('all');
   const [dateRange, setDateRange] = useState('all');
+  const [showHostModal, setShowHostModal] = useState(false);
   
   const { user } = useAuth();
   const router = useRouter();
@@ -111,6 +112,46 @@ export default function Events() {
     },
   });
 
+  const hostEventMutation = useMutation({
+    mutationFn: async (formData: any) => {
+      if (!user) throw new Error('Not authenticated');
+      const profiles = await firebase.entities.UserProfile.filter({ uid: user.uid });
+      const profile = profiles[0];
+      
+      return EventService.createEvent({
+        title: formData.title,
+        description: formData.description,
+        image_url: formData.image_url,
+        location: { 
+          name: formData.location_name, 
+          address: formData.location_address,
+          coordinates: { lat: 0, lng: 0 }
+        },
+        start_date: new Date(formData.start_date),
+        end_date: new Date(formData.end_date),
+        price: parseFloat(formData.price) || 0,
+        capacity: parseInt(formData.capacity) || 0,
+        category: formData.category as any,
+        tags: formData.tags ? formData.tags.split(',').map((t: string) => t.trim()).filter(Boolean) : [],
+        policy: { 
+          refund_policy: formData.refund_policy || 'Contact organizer for refund policy',
+          terms: formData.terms || 'Standard event terms apply'
+        },
+        organizer_id: user.uid,
+        organizer_name: profile?.display_name || 'Event Organizer',
+        organizer_avatar: profile?.avatar_url || ''
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      setShowHostModal(false);
+      alert('Event created successfully!');
+    },
+    onError: (error: any) => {
+      alert(`Failed to create event: ${error.message}`);
+    }
+  });
+
   // Like event mutation
   const likeEventMutation = useMutation({
     mutationFn: async (eventId: string) => {
@@ -137,77 +178,36 @@ export default function Events() {
 
   const filteredEvents = events?.filter(event => {
     // Enhanced search functionality
-    const matchesSearch = searchQuery === "" || 
-                         event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    const matchesSearch = event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          event.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          (event.location?.name && event.location.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
                          (event.organizer_name && event.organizer_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
                          (event.tags && event.tags.some((tag: string) => tag.toLowerCase().includes(searchQuery.toLowerCase())));
     
-    // Basic filters
-    let matchesBasicFilter = true;
+    if (filterType === "all") return matchesSearch;
     if (filterType === "upcoming") {
       const now = new Date();
       const eventDate = event.start_date?.toDate ? event.start_date.toDate() : 
                        (typeof event.start_date === 'string' || typeof event.start_date === 'number' ? 
                         new Date(event.start_date) : new Date());
-      matchesBasicFilter = eventDate > now;
-    } else if (filterType === "today") {
+      return matchesSearch && eventDate > now;
+    }
+    if (filterType === "today") {
       const today = new Date();
       const eventDate = event.start_date?.toDate ? event.start_date.toDate() : 
                        (typeof event.start_date === 'string' || typeof event.start_date === 'number' ? 
                         new Date(event.start_date) : new Date());
-      matchesBasicFilter = eventDate.toDateString() === today.toDateString();
-    } else if (filterType === "free") {
-      matchesBasicFilter = !event.price || event.price === 0;
-    } else if (filterType === "featured") {
-      matchesBasicFilter = event.featured;
+      return matchesSearch && 
+             eventDate.toDateString() === today.toDateString();
     }
-
-    // Advanced filters
-    let matchesAdvancedFilters = true;
-    if (showAdvancedFilters) {
-      // Price range filter
-      if (event.price && (event.price < priceRange.min || event.price > priceRange.max)) {
-        matchesAdvancedFilters = false;
-      }
-      
-      // Category filter
-      if (selectedCategory !== 'all' && event.category !== selectedCategory) {
-        matchesAdvancedFilters = false;
-      }
-      
-      // Location filter
-      if (selectedLocation !== 'all' && 
-          (!event.location?.name || !event.location.name.toLowerCase().includes(selectedLocation.toLowerCase()))) {
-        matchesAdvancedFilters = false;
-      }
-      
-      // Date range filter
-      if (dateRange !== 'all') {
-        const eventDate = event.start_date?.toDate ? event.start_date.toDate() : 
-                         (typeof event.start_date === 'string' || typeof event.start_date === 'number' ? 
-                          new Date(event.start_date) : new Date());
-        const now = new Date();
-        
-        switch (dateRange) {
-          case 'this_week':
-            const weekEnd = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-            if (eventDate < now || eventDate > weekEnd) matchesAdvancedFilters = false;
-            break;
-          case 'this_month':
-            const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-            if (eventDate < now || eventDate > monthEnd) matchesAdvancedFilters = false;
-            break;
-          case 'next_3_months':
-            const threeMonthsEnd = new Date(now.getFullYear(), now.getMonth() + 3, 0);
-            if (eventDate < now || eventDate > threeMonthsEnd) matchesAdvancedFilters = false;
-            break;
-        }
-      }
+    if (filterType === "free") {
+      return matchesSearch && (!event.price || event.price === 0);
+    }
+    if (filterType === "featured") {
+      return matchesSearch && event.featured;
     }
     
-    return matchesSearch && matchesBasicFilter && matchesAdvancedFilters;
+    return matchesSearch;
   }) || [];
 
   const handlePurchaseTicket = (event: any) => {
@@ -491,15 +491,15 @@ export default function Events() {
               {user && (
                 <>
                   <button
-                    onClick={() => router.push('/events/tickets')}
-                    className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+                    onClick={() => setShowHostModal(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl"
                   >
-                    <Ticket className="w-4 h-4" />
-                    Manage Tickets
+                    <Calendar className="w-4 h-4" />
+                    Host Event
                   </button>
                   <button
-                    onClick={() => router.push('/events/my-tickets')}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                    onClick={() => router.push('/events/tickets')}
+                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl"
                   >
                     <Ticket className="w-4 h-4" />
                     My Tickets
@@ -606,6 +606,251 @@ export default function Events() {
             onClose={() => setShowEventDetails(false)}
             onAddToCalendar={handleAddToCalendar}
           />
+        )}
+
+        {/* Host Event Modal */}
+        {showHostModal && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+            <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl max-w-2xl w-full border border-white/10 shadow-2xl my-8">
+              <div className="p-6 border-b border-white/10">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                    <Calendar className="w-6 h-6 text-green-400" />
+                    Host a New Event
+                  </h2>
+                  <button
+                    onClick={() => setShowHostModal(false)}
+                    className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                  >
+                    <span className="text-white text-2xl">×</span>
+                  </button>
+                </div>
+              </div>
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const formData = new FormData(e.currentTarget);
+                  const data = Object.fromEntries(formData.entries());
+                  hostEventMutation.mutate(data);
+                }}
+                className="p-6 space-y-6"
+              >
+                {/* Event Title */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Event Title *
+                  </label>
+                  <input
+                    type="text"
+                    name="title"
+                    required
+                    placeholder="e.g., Summer Rooftop Mixer"
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </div>
+
+                {/* Description */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Description *
+                  </label>
+                  <textarea
+                    name="description"
+                    required
+                    rows={4}
+                    placeholder="Describe your event..."
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </div>
+
+                {/* Image URL */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Event Image URL *
+                  </label>
+                  <input
+                    type="url"
+                    name="image_url"
+                    required
+                    placeholder="https://example.com/image.jpg"
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </div>
+
+                {/* Location */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Venue Name *
+                    </label>
+                    <input
+                      type="text"
+                      name="location_name"
+                      required
+                      placeholder="e.g., The Rooftop Bar"
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Address *
+                    </label>
+                    <input
+                      type="text"
+                      name="location_address"
+                      required
+                      placeholder="123 Main St, City, State"
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Date & Time */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Start Date & Time *
+                    </label>
+                    <input
+                      type="datetime-local"
+                      name="start_date"
+                      required
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      End Date & Time *
+                    </label>
+                    <input
+                      type="datetime-local"
+                      name="end_date"
+                      required
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Price & Capacity */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Ticket Price ($) *
+                    </label>
+                    <input
+                      type="number"
+                      name="price"
+                      required
+                      min="0"
+                      step="0.01"
+                      placeholder="0.00"
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Capacity *
+                    </label>
+                    <input
+                      type="number"
+                      name="capacity"
+                      required
+                      min="1"
+                      placeholder="100"
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Category */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Category *
+                  </label>
+                  <select
+                    name="category"
+                    required
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                  >
+                    <option value="networking">Networking</option>
+                    <option value="tasting">Tasting</option>
+                    <option value="party">Party</option>
+                    <option value="workshop">Workshop</option>
+                    <option value="festival">Festival</option>
+                    <option value="competition">Competition</option>
+                  </select>
+                </div>
+
+                {/* Tags */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Tags (comma-separated)
+                  </label>
+                  <input
+                    type="text"
+                    name="tags"
+                    placeholder="cocktails, rooftop, summer, networking"
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </div>
+
+                {/* Policy */}
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Refund Policy
+                    </label>
+                    <textarea
+                      name="refund_policy"
+                      rows={2}
+                      placeholder="e.g., Full refund up to 7 days before event"
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Terms & Conditions
+                    </label>
+                    <textarea
+                      name="terms"
+                      rows={2}
+                      placeholder="e.g., Must be 21+ to attend, Valid ID required"
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowHostModal(false)}
+                    className="flex-1 px-6 py-3 border border-white/20 text-white rounded-lg hover:bg-white/10 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={hostEventMutation.isPending}
+                    className="flex-1 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {hostEventMutation.isPending ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                        Creating...
+                      </>
+                    ) : (
+                      <>
+                        <Calendar className="w-5 h-5" />
+                        Create Event
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
         )}
       </div>
     </Layout>

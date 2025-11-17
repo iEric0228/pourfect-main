@@ -28,6 +28,14 @@ export default function Feed() {
     }
   }, [user, router]);
 
+  const handleUserClick = (userId: string) => {
+    if (userId === user?.uid) {
+      router.push('/profile');
+    } else {
+      router.push(`/profile/${userId}`);
+    }
+  };
+
   const { data: posts, isLoading: loadingPosts } = useQuery({
     queryKey: ['posts', activeTab, user?.uid],
     queryFn: async () => {
@@ -128,22 +136,20 @@ export default function Feed() {
   };
 
   const filteredPosts = posts?.filter(post => {
-    // Enhanced search functionality with more context
+    // Basic search match
     const matchesSearch = !searchQuery || 
       post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       post.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (post.ingredients && post.ingredients.some((ingredient: string) => 
         ingredient.toLowerCase().includes(searchQuery.toLowerCase())
-      )) ||
-      (post.location && post.location.name && 
-        post.location.name.toLowerCase().includes(searchQuery.toLowerCase()));
+      ));
 
-    // Advanced filters with enhanced logic
+    // Advanced filters
     const passesAdvancedFilters = !showAdvancedFilters || (
-      // Category filter - more specific matching
+      // Category filter
       (selectedCategory === 'all' || post.type === selectedCategory) &&
       
-      // Date range filter with improved precision
+      // Date range filter
       (dateRange === 'all' || (() => {
         const now = new Date();
         const postDate = post.created_at?.toDate ? post.created_at.toDate() : 
@@ -153,17 +159,9 @@ export default function Feed() {
           case 'today':
             return postDate.toDateString() === now.toDateString();
           case 'this_week':
-            const weekStart = new Date(now);
-            weekStart.setDate(now.getDate() - 7);
-            weekStart.setHours(0, 0, 0, 0);
-            return postDate >= weekStart;
+            return postDate >= new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
           case 'this_month':
-            const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-            return postDate >= monthStart;
-          case 'last_3_months':
-            const threeMonthsAgo = new Date(now);
-            threeMonthsAgo.setMonth(now.getMonth() - 3);
-            return postDate >= threeMonthsAgo;
+            return postDate >= new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
           default:
             return true;
         }
@@ -266,16 +264,11 @@ export default function Feed() {
                 {/* Advanced Filters Panel */}
                 {showAdvancedFilters && searchType === "posts" && (
                   <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-4">
-                    <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
-                      <Filter className="w-4 h-4" />
-                      Advanced Filters
-                    </h3>
-                    
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       {/* Category Filter */}
                       <div>
                         <label className="block text-sm font-medium text-gray-300 mb-1">
-                          Content Type
+                          Category
                         </label>
                         <select
                           value={selectedCategory}
@@ -283,10 +276,9 @@ export default function Feed() {
                           className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
                         >
                           <option value="all">All Posts</option>
-                          <option value="recipe">🍹 Recipes</option>
-                          <option value="review">⭐ Reviews</option>
-                          <option value="photo">📸 Photos</option>
-                          <option value="experience">✨ Experiences</option>
+                          <option value="recipe">Recipes</option>
+                          <option value="review">Reviews</option>
+                          <option value="photo">Photos</option>
                         </select>
                       </div>
 
@@ -300,10 +292,10 @@ export default function Feed() {
                           onChange={(e) => setSortBy(e.target.value)}
                           className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
                         >
-                          <option value="newest">⏰ Newest First</option>
-                          <option value="oldest">📅 Oldest First</option>
-                          <option value="most_liked">❤️ Most Liked</option>
-                          <option value="most_commented">💬 Most Comments</option>
+                          <option value="newest">Newest First</option>
+                          <option value="oldest">Oldest First</option>
+                          <option value="most_liked">Most Liked</option>
+                          <option value="most_commented">Most Comments</option>
                         </select>
                       </div>
 
@@ -321,43 +313,12 @@ export default function Feed() {
                           <option value="today">Today</option>
                           <option value="this_week">This Week</option>
                           <option value="this_month">This Month</option>
-                          <option value="last_3_months">Last 3 Months</option>
                         </select>
-                      </div>
-
-                      {/* Quick Filters */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-1">
-                          Quick Filter
-                        </label>
-                        <div className="flex flex-wrap gap-1">
-                          <button
-                            onClick={() => {
-                              setSelectedCategory('recipe');
-                              setSortBy('most_liked');
-                            }}
-                            className="px-2 py-1 text-xs bg-purple-600/20 text-purple-300 rounded hover:bg-purple-600/30 transition-colors"
-                          >
-                            Popular Recipes
-                          </button>
-                          <button
-                            onClick={() => {
-                              setDateRange('today');
-                              setSortBy('newest');
-                            }}
-                            className="px-2 py-1 text-xs bg-blue-600/20 text-blue-300 rounded hover:bg-blue-600/30 transition-colors"
-                          >
-                            Today's Posts
-                          </button>
-                        </div>
                       </div>
                     </div>
 
-                    {/* Filter Stats & Actions */}
-                    <div className="mt-3 flex items-center justify-between">
-                      <div className="text-xs text-gray-400">
-                        {filteredPosts.length} {filteredPosts.length === 1 ? 'post' : 'posts'} found
-                      </div>
+                    {/* Clear Filters */}
+                    <div className="mt-3 flex justify-end">
                       <button
                         onClick={() => {
                           setSelectedCategory('all');
@@ -366,7 +327,7 @@ export default function Feed() {
                         }}
                         className="text-sm text-gray-300 hover:text-white transition-colors"
                       >
-                        Clear All Filters
+                        Clear Filters
                       </button>
                     </div>
                   </div>
@@ -429,12 +390,16 @@ export default function Feed() {
                     {searchResults && searchResults.length > 0 ? (
                       <div className="grid gap-4">
                         {searchResults.map((profile) => (
-                          <div key={profile.id} className="bg-white/5 rounded-xl p-4 backdrop-blur-sm border border-white/10">
+                          <div 
+                            key={profile.uid} 
+                            className="bg-white/5 rounded-xl p-4 backdrop-blur-sm border border-white/10"
+                          >
                             <UserProfileCard 
                               user={profile} 
                               onFollow={() => handleFollow(profile.uid)}
                               isFollowing={followStatuses?.[profile.uid]}
                               isLoading={followMutation.isPending || unfollowMutation.isPending}
+                              onUserClick={handleUserClick}
                             />
                           </div>
                         ))}
@@ -504,14 +469,40 @@ export default function Feed() {
                 </h3>
                 <div className="space-y-3">
                   {userProfiles?.slice(0, 5).map((profile) => (
-                    <UserProfileCard 
-                      key={profile.id} 
-                      user={profile} 
-                      compact 
-                      onFollow={() => handleFollow(profile.uid)}
-                      isFollowing={followStatuses?.[profile.uid]}
-                      isLoading={followMutation.isPending || unfollowMutation.isPending}
-                    />
+                    <div key={profile.id} className="flex items-center gap-3">
+                      <div 
+                        className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center cursor-pointer hover:ring-2 hover:ring-purple-400 transition-all"
+                        onClick={() => handleUserClick(profile.uid)}
+                      >
+                        {profile.avatar_url ? (
+                          <img src={profile.avatar_url} alt={profile.display_name} className="w-full h-full rounded-full object-cover" />
+                        ) : (
+                          <span className="text-white text-sm font-bold">{profile.display_name?.charAt(0) || 'U'}</span>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div 
+                          className="font-medium text-white text-sm truncate cursor-pointer hover:text-purple-400 transition-colors"
+                          onClick={() => handleUserClick(profile.uid)}
+                        >
+                          {profile.display_name}
+                        </div>
+                        <div className="text-xs text-gray-400 truncate">@{profile.username}</div>
+                      </div>
+                      {profile.uid !== user?.uid && (
+                        <button
+                          onClick={() => handleFollow(profile.uid)}
+                          disabled={followMutation.isPending || unfollowMutation.isPending}
+                          className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
+                            followStatuses?.[profile.uid]
+                              ? 'bg-white/20 text-white hover:bg-white/30'
+                              : 'bg-purple-600 text-white hover:bg-purple-700'
+                          }`}
+                        >
+                          {followStatuses?.[profile.uid] ? '✓' : '+'}
+                        </button>
+                      )}
+                    </div>
                   )) || (
                     <div className="text-gray-500 text-sm">No suggestions available</div>
                   )}
@@ -556,22 +547,55 @@ export default function Feed() {
 
 // Placeholder components that we'll create next
 function PostCard({ post }: { post: any }) {
+  const router = useRouter();
+  const { user: currentUser } = useAuth();
+  
+  const { data: postAuthor } = useQuery({
+    queryKey: ['post-author', post.user_id],
+    queryFn: async () => {
+      const profiles = await firebase.entities.UserProfile.filter({ uid: post.user_id });
+      return profiles[0] || null;
+    },
+    enabled: !!post.user_id,
+  });
+
+  const handleUserClick = (userId: string) => {
+    if (userId === currentUser?.uid) {
+      router.push('/profile');
+    } else {
+      router.push(`/profile/${userId}`);
+    }
+  };
+
   return (
     <div className="bg-white/5 rounded-xl p-6 backdrop-blur-sm border border-white/10">
       <div className="flex items-center gap-3 mb-4">
-        <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
-          <span className="text-white font-semibold text-sm">
-            {post.user_id?.charAt(0)?.toUpperCase() || 'U'}
-          </span>
+        <div 
+          className="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center cursor-pointer hover:ring-2 hover:ring-purple-400 transition-all overflow-hidden"
+          onClick={() => handleUserClick(post.user_id)}
+        >
+          {postAuthor?.avatar_url ? (
+            <img src={postAuthor.avatar_url} alt={postAuthor.display_name} className="w-full h-full object-cover" />
+          ) : (
+            <span className="text-white font-semibold text-sm">
+              {postAuthor?.display_name?.charAt(0)?.toUpperCase() || post.user_id?.charAt(0)?.toUpperCase() || 'U'}
+            </span>
+          )}
         </div>
         <div className="flex-1">
-          <div className="font-semibold text-white">{post.title}</div>
+          <div 
+            className="font-semibold text-white cursor-pointer hover:text-purple-400 transition-colors"
+            onClick={() => handleUserClick(post.user_id)}
+          >
+            {postAuthor?.display_name || 'Anonymous User'}
+          </div>
           <div className="text-gray-400 text-sm">
             {post.created_at?.toDate?.()?.toLocaleDateString() || 'Recently'}
           </div>
         </div>
       </div>
       
+      <h3 className="font-semibold text-white text-lg mb-2">{post.title}</h3>
       <p className="text-gray-300 mb-4">{post.content}</p>
       
       {post.images && post.images.length > 0 && (
@@ -606,13 +630,15 @@ function UserProfileCard({
   compact, 
   onFollow, 
   isFollowing, 
-  isLoading 
+  isLoading,
+  onUserClick
 }: { 
   user: any; 
   compact?: boolean; 
   onFollow?: () => void; 
   isFollowing?: boolean; 
-  isLoading?: boolean; 
+  isLoading?: boolean;
+  onUserClick?: (uid: string) => void;
 }) {
   return (
     <div className="flex items-center gap-3">
@@ -620,17 +646,26 @@ function UserProfileCard({
         <img 
           src={user.avatar_url} 
           alt={user.display_name} 
-          className="w-8 h-8 rounded-full object-cover"
+          className="w-8 h-8 rounded-full object-cover cursor-pointer hover:ring-2 hover:ring-purple-400 transition-all"
+          onClick={() => onUserClick?.(user.uid)}
         />
       ) : (
-        <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
+        <div 
+          className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center cursor-pointer hover:ring-2 hover:ring-purple-400 transition-all"
+          onClick={() => onUserClick?.(user.uid)}
+        >
           <span className="text-white font-semibold text-xs">
             {user.display_name?.charAt(0)?.toUpperCase() || 'U'}
           </span>
         </div>
       )}
       <div className="flex-1 min-w-0">
-        <div className="font-medium text-white text-sm truncate">{user.display_name || 'Anonymous'}</div>
+        <div 
+          className="font-medium text-white text-sm truncate cursor-pointer hover:text-purple-400 transition-colors"
+          onClick={() => onUserClick?.(user.uid)}
+        >
+          {user.display_name || 'Anonymous'}
+        </div>
         <div className="text-gray-400 text-xs truncate">@{user.username || 'user'}</div>
         {!compact && user.bio && (
           <div className="text-gray-500 text-xs mt-1 line-clamp-2">{user.bio}</div>

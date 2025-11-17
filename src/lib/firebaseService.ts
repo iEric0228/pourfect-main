@@ -227,9 +227,6 @@ export interface Ticket {
   qr_code: string;
   status: 'active' | 'used' | 'transferred' | 'refunded';
   transferred_to?: string;
-  transferred_at?: Timestamp;
-  transferred_from?: string;
-  used_at?: Timestamp;
   payment_method: 'apple_pay' | 'google_pay' | 'card';
   payment_id: string;
 }
