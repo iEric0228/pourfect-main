@@ -1,12 +1,13 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User } from 'firebase/auth';
+import { AuthProvider as AP, User } from 'firebase/auth';
 import { authService } from '@/lib/firebaseService';
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  googleSignIn: (provider : AP) => Promise<User>;
   signIn: (email: string, password: string) => Promise<User>;
   signUp: (email: string, password: string) => Promise<User>;
   signOut: () => Promise<void>;
@@ -27,6 +28,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => unsubscribe();
   }, []);
 
+  const googleSignIn = async (provider : AP) => {
+    const user = await authService.googleSignIn(provider);
+    return user;
+  }
+
   const signIn = async (email: string, password: string) => {
     const user = await authService.signIn(email, password);
     return user;
@@ -44,6 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value = {
     user,
     loading,
+    googleSignIn,
     signIn,
     signUp,
     signOut

@@ -19,12 +19,19 @@ import {
   signInWithEmailAndPassword, 
   signOut, 
   onAuthStateChanged,
-  User 
+  User, 
+  signInWithPopup,
+  AuthProvider
 } from 'firebase/auth';
 import { auth, db } from './firebase';
 
 // Auth Service
 export const authService = {
+  async googleSignIn(googleProvider : AuthProvider) {
+    const userCredential = await signInWithPopup(auth, googleProvider);
+    return userCredential.user;
+  },
+
   async signUp(email: string, password: string) {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     return userCredential.user;
@@ -85,7 +92,7 @@ class EntityService<T extends DocumentData> {
     return null;
   }
 
-  async filter(conditions: Record<string, any> = {}, options: {
+  async filter(conditions: Record<string, unknown> = {}, options: {
     orderBy?: { field: string; direction: 'asc' | 'desc' };
     limit?: number;
   } = {}): Promise<T[]> {

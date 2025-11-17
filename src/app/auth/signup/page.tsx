@@ -6,6 +6,9 @@ import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { Eye, EyeOff, Mail, Lock, User, Sparkles } from 'lucide-react';
 import { firebase } from '@/lib/firebaseService';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faGoogle } from '@fortawesome/free-brands-svg-icons';
+import { GoogleAuthProvider } from 'firebase/auth';
 
 export default function SignUp() {
   const [formData, setFormData] = useState({
@@ -20,7 +23,7 @@ export default function SignUp() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const { signUp } = useAuth();
+  const { signUp, googleSignIn } = useAuth();
   const router = useRouter();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -28,6 +31,19 @@ export default function SignUp() {
       ...prev,
       [e.target.name]: e.target.value
     }));
+  };
+
+  const handleGoogleSignIn = async () => {
+    const googleProvider = new GoogleAuthProvider();
+    try {
+      setLoading(true);
+      await googleSignIn(googleProvider);
+      router.push('/feed');
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -64,21 +80,21 @@ export default function SignUp() {
       });
 
       router.push('/onboarding');
-    } catch (error: any) {
-      setError(error.message || 'Failed to create account');
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : 'An error occurred');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-purple-950 to-slate-900 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-slate-950 via-purple-950 to-slate-900 p-4">
       <div className="max-w-md w-full">
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-4">
             <Sparkles className="h-8 w-8 text-purple-400" />
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+            <h1 className="text-3xl font-bold bg-linear-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
               Pourfect
             </h1>
           </div>
@@ -93,6 +109,20 @@ export default function SignUp() {
                 {error}
               </div>
             )}
+            
+            <div>
+              <button onClick={handleGoogleSignIn}
+                className='cursor-pointer w-full bg-blue-600 p-3 rounded-md hover:bg-blue-700 text-white font-semibold flex items-center justify-center gap-2 mb-4 transition-all duration-200'
+              >
+                Sign up with <FontAwesomeIcon icon={faGoogle}/>
+              </button>
+            </div>
+
+            <div className='flex justify-evenly items-center'>
+              <hr className='w-32' />
+              or
+              <hr className='w-32' />
+            </div>
 
             {/* Display Name */}
             <div>
@@ -212,7 +242,7 @@ export default function SignUp() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 shadow-lg shadow-purple-500/25"
+              className="w-full bg-linear-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 shadow-lg shadow-purple-500/25"
             >
               {loading ? 'Creating Account...' : 'Sign Up'}
             </button>

@@ -1,6 +1,7 @@
 # New Features Guide
 
 ## Overview
+
 This guide documents all the new features added to the Pourfect application.
 
 ---
@@ -8,14 +9,17 @@ This guide documents all the new features added to the Pourfect application.
 ## 1. Public Profile Pages
 
 ### Feature: View Other Users' Profiles
+
 Users can now view other people's profiles by clicking on their avatar or username throughout the app.
 
-### How to Use:
+### How to Use Profile
+
 - **In Feed**: Click on any user's avatar or name in posts or search results
 - **In Search**: Search for users and click on their profile cards
 - **In Suggested Users**: Click on avatars or names in the sidebar
 
-### Technical Details:
+### Technical Details For Profile
+
 - Route: `/profile/[uid]/page.tsx`
 - Displays: User info, posts, follower/following counts
 - Features: Follow/Unfollow button, message button
@@ -26,9 +30,11 @@ Users can now view other people's profiles by clicking on their avatar or userna
 ## 2. Individual Ticket Detail Pages
 
 ### Feature: Dedicated Ticket View
+
 Each ticket now has its own detailed page with full event information and QR code.
 
-### How to Use:
+### How to Use Individual Ticket
+
 1. Go to "My Tickets" from the Events page
 2. Click on any ticket or click the eye icon
 3. View full ticket details including:
@@ -39,7 +45,8 @@ Each ticket now has its own detailed page with full event information and QR cod
    - Purchase information
    - Download and transfer options
 
-### Technical Details:
+### Technical Details For Individual Ticket
+
 - Route: `/events/tickets/[ticketId]/page.tsx`
 - Features: QR code display, ticket code copy, download ticket, transfer option
 - Shows origin (purchased vs received)
@@ -49,9 +56,11 @@ Each ticket now has its own detailed page with full event information and QR cod
 ## 3. Host Event Functionality
 
 ### Feature: Create Your Own Events
+
 Users can now host their own events directly from the Events page.
 
-### How to Use:
+### How to Use Event Hosting
+
 1. Navigate to Events page
 2. Click "Host Event" button in the header
 3. Fill out the event form:
@@ -67,7 +76,8 @@ Users can now host their own events directly from the Events page.
 
 4. Submit to create the event
 
-### Technical Details:
+### Technical Details For Event Hosting
+
 - Added `EventService.createEvent()` method
 - Modal form with validation
 - Automatically sets organizer info from user profile
@@ -78,13 +88,16 @@ Users can now host their own events directly from the Events page.
 ## 4. Logout Functionality
 
 ### Feature: Sign Out and Redirect
+
 Users can now properly log out and are automatically redirected to the sign-in page.
 
-### How to Use:
+### How to Use Login
+
 - **Desktop**: Click "Logout" button in the top navigation bar
 - **Mobile**: Tap "Logout" in the bottom navigation
 
-### Technical Details:
+### Technical Details For Login
+
 - Added to Layout component
 - Calls `signOut()` from AuthContext
 - Automatically redirects to `/auth/signin`
@@ -95,15 +108,18 @@ Users can now properly log out and are automatically redirected to the sign-in p
 ## 5. Enhanced User Interactions in Feed
 
 ### Feature: Clickable User Profiles
+
 All user avatars and names throughout the feed are now clickable and navigate to user profiles.
 
-### Locations:
+### Locations
+
 - **Post cards**: Author name and avatar
 - **Search results**: User profile cards
 - **Suggested users sidebar**: Avatars and names
 - **Comments**: User avatars (if implemented)
 
-### Technical Details:
+### Technical Details For User Interaction
+
 - Added `handleUserClick()` function
 - Distinguishes between own profile and others
 - Hover effects on clickable elements
@@ -114,16 +130,19 @@ All user avatars and names throughout the feed are now clickable and navigate to
 ## 6. User Posts in Profile
 
 ### Feature: View User's Posts
+
 The profile page now displays all posts created by the user.
 
-### What's Shown:
+### What's Shown
+
 - Post type badge
 - Post title and content
 - Images (if available)
 - Like and comment counts
 - Post date
 
-### Technical Details:
+### Technical Details For User Posts
+
 - Queries posts by `user_id`
 - Displays in grid layout (2 columns on desktop)
 - Empty state for users with no posts
@@ -133,15 +152,17 @@ The profile page now displays all posts created by the user.
 
 ## Navigation Flow
 
-### Profile Viewing Flow:
-```
+### Profile Viewing Flow
+
+```text
 Feed → Click User → Public Profile → Follow/Message
   ↓
 Own Profile (if clicking own avatar)
 ```
 
-### Ticket Management Flow:
-```
+### Ticket Management Flow
+
+```text
 Events → My Tickets → Ticket List → Click Ticket → Detail Page
   ↓                      ↓
 Host Event          View QR Code
@@ -149,8 +170,9 @@ Host Event          View QR Code
                     Transfer
 ```
 
-### Event Creation Flow:
-```
+### Event Creation Flow
+
+```text
 Events → Host Event → Fill Form → Submit → Event Created
 ```
 
@@ -158,14 +180,16 @@ Events → Host Event → Fill Form → Submit → Event Created
 
 ## API Endpoints & Services
 
-### New Methods:
+### New Methods
+
 1. **EventService.createEvent()** - Create new events
 2. **UserService.isFollowing()** - Check follow status
 3. **UserService.followUser()** - Follow a user
 4. **UserService.unfollowUser()** - Unfollow a user
 5. **UserService.searchUsers()** - Search for users
 
-### New Routes:
+### New Routes
+
 1. `/profile/[uid]` - Public profile view
 2. `/events/tickets/[ticketId]` - Individual ticket detail
 
@@ -173,7 +197,8 @@ Events → Host Event → Fill Form → Submit → Event Created
 
 ## Database Updates
 
-### Modified Entities:
+### Modified Entities
+
 - **Ticket**: Added navigation to detail page
 - **Event**: Added creation by users
 - **Follow**: Relationship tracking for users
@@ -182,17 +207,20 @@ Events → Host Event → Fill Form → Submit → Event Created
 
 ## UI/UX Improvements
 
-### Hover Effects:
+### Hover Effects
+
 - User avatars glow on hover
 - Names change color on hover
 - Smooth transitions
 
-### Visual Indicators:
+### Visual Indicators
+
 - Follow/Following button states
 - Origin badges on tickets (purchased/received)
 - Status badges (active/used/transferred)
 
-### Responsive Design:
+### Responsive Design
+
 - All new features work on mobile and desktop
 - Touch-friendly buttons on mobile
 - Adaptive layouts
@@ -241,6 +269,7 @@ Events → Host Event → Fill Form → Submit → Event Created
 ## Support
 
 For issues or questions:
+
 1. Check console for errors
 2. Verify user authentication
 3. Check network tab for failed requests

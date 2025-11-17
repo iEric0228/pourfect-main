@@ -63,7 +63,7 @@ export default function Onboarding() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-purple-950 to-slate-900 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-slate-950 via-purple-950 to-slate-900 p-4">
       <div className="max-w-md w-full">
         {/* Progress Bar */}
         <div className="mb-8">
@@ -73,7 +73,7 @@ export default function Onboarding() {
           </div>
           <div className="w-full bg-white/10 rounded-full h-2">
             <div 
-              className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full transition-all duration-300"
+              className="bg-linear-to-r from-purple-500 to-pink-500 h-2 rounded-full transition-all duration-300"
               style={{ width: `${(step / 3) * 100}%` }}
             />
           </div>
@@ -82,12 +82,12 @@ export default function Onboarding() {
         <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-8">
           {step === 1 && (
             <div className="text-center">
-              <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-6">
+              <div className="w-16 h-16 bg-linear-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-6">
                 <User className="w-8 h-8 text-white" />
               </div>
               <h2 className="text-2xl font-bold text-white mb-4">Welcome to Pourfect!</h2>
               <p className="text-gray-300 mb-8">
-                Let's set up your profile to help you connect with fellow drink enthusiasts.
+                Let&apos;s set up your profile to help you connect with fellow drink enthusiasts.
               </p>
               
               <div className="text-left">
@@ -107,12 +107,12 @@ export default function Onboarding() {
 
           {step === 2 && (
             <div className="text-center">
-              <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-6">
+              <div className="w-16 h-16 bg-linear-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-6">
                 <MapPin className="w-8 h-8 text-white" />
               </div>
               <h2 className="text-2xl font-bold text-white mb-4">What are your interests?</h2>
               <p className="text-gray-300 mb-8">
-                Select the topics you're most interested in to personalize your experience.
+                Select the topics you&apos;re most interested in to personalize your experience.
               </p>
               
               <div className="grid grid-cols-2 gap-3">
@@ -122,7 +122,7 @@ export default function Onboarding() {
                     onClick={() => handleInterestToggle(interest)}
                     className={`p-3 rounded-lg text-sm font-medium transition-all ${
                       formData.interests.includes(interest)
-                        ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
+                        ? 'bg-linear-to-r from-purple-500 to-pink-500 text-white'
                         : 'bg-white/10 text-gray-300 hover:bg-white/20'
                     }`}
                   >
@@ -135,10 +135,10 @@ export default function Onboarding() {
 
           {step === 3 && (
             <div className="text-center">
-              <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-6">
+              <div className="w-16 h-16 bg-linear-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-6">
                 <Camera className="w-8 h-8 text-white" />
               </div>
-              <h2 className="text-2xl font-bold text-white mb-4">You're all set!</h2>
+              <h2 className="text-2xl font-bold text-white mb-4">You&apos;re all set!</h2>
               <p className="text-gray-300 mb-8">
                 Your profile is ready. You can always update it later in your profile settings.
               </p>
@@ -178,7 +178,7 @@ export default function Onboarding() {
             {step < 3 ? (
               <button
                 onClick={handleNext}
-                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-lg transition-all"
+                className="flex items-center gap-2 px-6 py-3 bg-linear-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-lg transition-all"
               >
                 Next <ArrowRight className="w-4 h-4" />
               </button>
@@ -186,7 +186,7 @@ export default function Onboarding() {
               <button
                 onClick={handleComplete}
                 disabled={loading}
-                className="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-all"
+                className="px-6 py-3 bg-linear-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-all"
               >
                 {loading ? 'Completing...' : 'Get Started'}
               </button>
